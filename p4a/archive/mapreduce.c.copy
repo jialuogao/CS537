@@ -1,0 +1,279 @@
+#include <assert.h> 
+#include <stdio.h> 
+#include <stdlib.h> 
+#include <string.h> 
+#include <pthread.h> 
+#include "mapreduce.h"
+
+typedef struct linkNode {
+    char *val;
+    struct linkNode *next;
+    pthread_mutex_t entrylock;
+    struct linkNode *curat;
+}linkNode;
+
+typedef struct storeNode {
+    linkNode *store;
+    pthread_mutex_t storelock;
+    int curtsize;
+    int curused;
+    int keynum;
+}storeNode;
+storeNode *storage;
+pthread_mutex_t freelock;
+pthread_mutex_t filenumlock;
+
+int filenum = 0; //current mapping file number or reducing key number
+int filetotal = -1; //argc-1 total num of file
+int totalreducer; //number of reducer
+Mapper mapf;
+Reducer redf;
+Partitioner parf;
+Getter getf;
+
+void dumpMem(){
+    printf("\n\nMemory dump starting ...\n");
+	for(int j = 0; j < totalreducer; j++){
+		printf("Printing colum: %d\n", j);
+		storeNode *store = storage + j;
+		linkNode *sarray = store->store;
+                int num = 15 < store->curused ? 15 : store->curused;
+		for(int i = 0; i < num; i ++){
+			linkNode* keyNode = sarray + i;
+			printf("Key %d : %sValue:", i, keyNode->val);
+			linkNode* curNode = keyNode->next;
+			while(curNode != NULL){
+				printf(" %s  ", curNode->val);
+				curNode = curNode->next;
+			}
+			printf("\n");
+		}
+		printf("\n");
+	}
+
+    printf("Memroy dump end ...\n\n\n");
+}
+
+void freeRec(linkNode *curNode) {
+    if (curNode != NULL) {
+        freeRec(curNode -> next);
+        free(curNode);
+        curNode = NULL;
+    }
+}
+/*
+void storagefree() {
+    pthread_mutex_lock( &freelock);
+	
+    for (int i = 0; i < curused; i++) {
+        linkNode *keyNode = storage + i;
+        linkNode *curNode = keyNode -> next;
+        freeRec(curNode);
+        free(keyNode);
+        keyNode = NULL;
+    }
+    free(storage);
+    storage = NULL;
+    pthread_mutex_unlock( &freelock);
+}
+*/
+
+int compareNode(const void*node1, const void*node2){
+    char *key1 = ((linkNode*)node1) -> val;
+    char *key2 = ((linkNode*)node2) -> val;
+    return strcmp(key1, key2);
+}
+
+unsigned long MR_DefaultHashPartition(char *key, int num_partitions) {
+    unsigned long hash = 5381;
+    int c;
+    while ((c = *key++) != '\0')
+        hash = hash *33 + c;
+    return hash % num_partitions;
+}
+
+void MR_Emit(char *key, char *value) {
+    int partition = parf(key, totalreducer);
+    storeNode* store = storage + partition;
+    pthread_mutex_lock(&(store->storelock));
+    linkNode* sarray = store->store;
+    if (store->curtsize == store->curused) {
+        sarray = (linkNode*)realloc(sarray, store->curtsize * 2 * sizeof(linkNode));
+        store->curtsize *= 2;
+        memset((sarray + store->curused), 0,  (store->curtsize - store->curused)*sizeof(linkNode));
+        store -> store = sarray;
+    }
+
+    //linear search for key position
+    for(int i = 0; i < store->curused; i++) {
+        linkNode *keyNode = sarray + i;
+	if(strcmp(keyNode->val, key) == 0) {
+            linkNode *valueNode = calloc(1, sizeof(linkNode));
+            if (valueNode == NULL) {
+                printf("Error: failed to allocate for valuenode\n");
+                exit(1);
+            }
+            valueNode -> val = malloc(strlen(value) + 1);
+            strcpy(valueNode -> val, value);
+            pthread_mutex_init( &(valueNode -> entrylock), NULL);
+            linkNode *curNode = keyNode -> next;
+            if (curNode == NULL){
+                keyNode -> next = valueNode;
+                pthread_mutex_unlock(&(store->storelock));
+            }else{
+                pthread_mutex_unlock(&(store->storelock));
+                while (curNode != NULL) {
+                    if (strcmp(curNode->val, value) >= 0) {
+                        pthread_mutex_lock(&(curNode->entrylock));
+                        linkNode *saveNode = curNode -> next;
+                        curNode -> next = valueNode;
+                        valueNode -> next = saveNode;
+                        pthread_mutex_unlock(&(curNode->entrylock));
+			return;
+                    }
+                    curNode = curNode -> next;
+		}
+            }
+            return;
+	}
+    }
+
+    linkNode *newKey = calloc(1, sizeof(linkNode));
+    if (newKey == NULL) {
+        printf("Error: failed to allocate for newkey\n");
+        exit(1);
+    }
+    newKey->val = malloc(strlen(key) + 1);
+    strcpy(newKey -> val, key);
+    if (pthread_mutex_init( &(newKey -> entrylock), NULL) != 0) {
+        printf("Error: failed to init entrylock \n");
+        exit(1);
+    }
+    linkNode *newValue = calloc(1, sizeof(linkNode));
+    newValue->val = malloc(strlen(value) + 1);
+    strcpy(newValue->val, value);
+    pthread_mutex_init( &(newValue -> entrylock), NULL);
+    newKey -> next = newValue;
+    newKey->curat = newKey->next;
+
+    memcpy((sarray + store->curused), newKey, sizeof(linkNode));
+    free(newKey); newKey = NULL;
+    store->curused++;
+    pthread_mutex_unlock( &(store->storelock));
+}
+
+char* get_next(void *key, int partition_number){
+    linkNode tempkey;
+    tempkey.val = (char*)key;
+    storeNode* store = (storage + partition_number);
+    linkNode* sarray = store -> store;
+    void* index = bsearch((void*)(&tempkey), sarray, store->curused, sizeof(linkNode), compareNode);
+    linkNode* curkey = (linkNode*)index;
+    pthread_mutex_lock(&(curkey->entrylock));
+    if(curkey->curat == NULL){
+        return NULL;
+    }
+    char* val = (curkey->curat)->val;
+    curkey->curat = (curkey->curat)->next;
+    pthread_mutex_unlock(&(curkey->entrylock));
+    return val;
+}
+
+void* mapstart(void *argv) {
+    if (filetotal < 0) {
+        printf("Error: Filetatal is < 0\n");
+        exit(1);
+    }
+    while(1) {
+        pthread_mutex_lock(&filenumlock);
+        if (filenum >= filetotal) {
+            pthread_mutex_unlock(&filenumlock);
+            return NULL;
+        }
+        char *curfile = *((char**)argv + (filenum++));
+        pthread_mutex_unlock(&filenumlock);
+        (*mapf)(curfile);
+    }
+}
+
+void* reducestart(void *argv) {
+    int partition = *((int*)argv);
+    storeNode* store = storage + partition;
+    linkNode* sarray = store->store;
+    while (1){
+	if(store->keynum >= store->curused){
+            return NULL;
+	}
+	//pthread_mutex_lock(&store->storelock);
+	char* key = (sarray + (store->keynum)) -> val;
+	store->keynum ++;
+	//pthread_mutex_unlock(&store->storelock);
+	(*redf)(key, getf, partition);
+    }
+}
+
+void MR_Run(int argc, char *argv[],
+    Mapper map, int num_mappers,
+    Reducer reduce, int num_reducers,
+    Partitioner partition) {
+		
+    if (pthread_mutex_init( &freelock, NULL) != 0) {
+        printf("Error: failed to init freelock \n");
+        exit(1);
+    }
+    pthread_mutex_init(&filenumlock,NULL);
+    filetotal = argc - 1;
+	
+    totalreducer = num_reducers;
+    storage = calloc(totalreducer, sizeof(storeNode));
+    if (storage == NULL) {
+        printf("Error: failed to allocate for storage\n");
+        exit(1);
+    }
+    for(int a = 0; a < totalreducer; a++){
+        storeNode* store = storage + a;
+        store -> store = calloc(10, sizeof(linkNode));
+        store -> curtsize = 10;
+        pthread_mutex_init(&(store->storelock), NULL);
+    }
+
+    if (partition == NULL) parf = MR_DefaultHashPartition;
+    else parf = partition;
+    mapf = map;
+    redf = reduce;
+    getf = (Getter)get_next;
+
+    int minthread = (num_mappers < filetotal) ? num_mappers : filetotal;
+    pthread_t mthreads[minthread]; //TODO check return value
+    filenum = 0;
+    for (int i = 0; i < minthread; i++) {
+        if (pthread_create(&mthreads[i], NULL, mapstart, argv + 1) != 0) {
+            printf("Error: Failed to create mapper thread: %di\n", i);
+            exit(1);
+        }
+    }
+    for (int k = 0; k < minthread; k++) {
+        pthread_join(mthreads[k], NULL);
+    }
+
+    for(int d = 0; d < totalreducer; d++){
+	storeNode* store = (storage + d);
+	linkNode* sarray = store -> store;
+    	qsort(sarray, store->curused, sizeof(linkNode), compareNode);
+    }
+    //dumpMem();
+    pthread_t rthreads[totalreducer];
+    for (int j = 0; j < totalreducer; j++) {
+        int* rargv = malloc(sizeof(int));
+        *rargv = j;
+        if (pthread_create(&rthreads[j], NULL, reducestart, rargv) != 0) {
+            printf("Error: Failed to create reducer threadL %d\n", j);
+            exit(1);
+        }
+	free(rargv); rargv = NULL;
+    }
+    for (int l = 0; l < totalreducer; l++) {
+        pthread_join(rthreads[l], NULL);
+    }
+    //dumpMem();
+}

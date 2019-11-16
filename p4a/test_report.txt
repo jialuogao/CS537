@@ -1,0 +1,28 @@
+{"test_cnt": 0, "succ": true, "score": 10, "full_score": 10, "message": "None", "time": 0}
+{"test_cnt": 1, "succ": true, "score": 4, "full_score": 4, "message": "None", "time": 0.06671008496778086}
+{"test_cnt": 2, "succ": true, "score": 2, "full_score": 2, "message": "None", "time": 0.04625336697790772}
+{"test_cnt": 3, "succ": true, "score": 2, "full_score": 2, "message": "None", "time": 0.051782199006993324}
+{"test_cnt": 4, "succ": true, "score": 2, "full_score": 2, "message": "None", "time": 0.06022422603564337}
+{"test_cnt": 5, "succ": true, "score": 4, "full_score": 4, "message": "None", "time": 0.17568061198107898}
+{"test_cnt": 6, "succ": true, "score": 2, "full_score": 2, "message": "None", "time": 0.16729249601485208}
+{"test_cnt": 7, "succ": true, "score": 2, "full_score": 2, "message": "None", "time": 0.23886501701781526}
+{"test_cnt": 8, "succ": true, "score": 3, "full_score": 4, "message": "TLE in 5 seconds", "time": 23.53946589399129}
+{"test_cnt": 9, "succ": true, "score": 4, "full_score": 4, "message": "None", "time": 0.1621801690198481}
+{"test_cnt": 10, "succ": true, "score": 2, "full_score": 2, "message": "None", "time": 1.0288240420049988}
+{"test_cnt": 11, "succ": true, "score": 2, "full_score": 2, "message": "None", "time": 1.8270843549980782}
+{"test_cnt": 12, "succ": true, "score": 5, "full_score": 5, "message": "None", "time": 2.3278027329943143}
+{"test_cnt": 13, "succ": true, "score": 5, "full_score": 5, "message": "None", "time": 1.6428741090348922}
+{"test_cnt": 14, "succ": true, "score": 5, "full_score": 5, "message": "None", "time": 2.379533399012871}
+{"test_cnt": 15, "succ": true, "score": 5, "full_score": 5, "message": "None", "time": 1.3128566410159692}
+{"test_cnt": 16, "succ": true, "score": 4, "full_score": 4, "message": "None", "time": 26.242449840996414}
+{"test_cnt": 17, "succ": true, "score": 4, "full_score": 4, "message": "None", "time": 0.16210722300456837}
+{"test_cnt": 18, "succ": true, "score": 4, "full_score": 4, "message": "None", "time": 0.3397864799480885}
+{"test_cnt": 19, "succ": true, "score": 4, "full_score": 4, "message": "None", "time": 4.164834452967625}
+{"test_cnt": 20, "succ": true, "score": 4, "full_score": 4, "message": "None", "time": 24.378016664995812}
+{"test_cnt": 21, "succ": true, "score": 4, "full_score": 4, "message": "None", "time": 17.65000678197248}
+{"test_cnt": 22, "succ": true, "score": 2, "full_score": 2, "message": "None", "time": 28.953885448980145}
+{"test_cnt": 23, "succ": true, "score": 2, "full_score": 2, "message": "None", "time": 28.473133919993415}
+{"test_cnt": 24, "succ": true, "score": 2, "full_score": 2, "message": "None", "time": 7.02652140398277}
+{"test_cnt": 25, "succ": false, "score": 0, "full_score": 3, "message": "Valgrind test failed", "time": 37.2760877009714}
+{"test_cnt": 26, "succ": true, "score": 0, "full_score": 0, "message": "None", "time": 60.01064910995774}
+final_score: 96
