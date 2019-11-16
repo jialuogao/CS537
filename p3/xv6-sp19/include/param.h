@@ -15,5 +15,6 @@
 #define USERTOP  0xA0000 // end of user address space
 #define PHYSTOP  0x1000000 // use phys mem up to here as free pool
 #define MAXARG       32  // max exec arguments
-
+#define HEAPBOT    16384
+#define SHAREDMEM    3
 #endif // _PARAM_H_

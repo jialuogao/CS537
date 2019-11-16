@@ -75,6 +75,7 @@ found:
 void
 userinit(void)
 {
+//cprintf("userinit ... \n");
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
   
@@ -84,15 +85,22 @@ userinit(void)
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
   inituvm(p->pgdir, _binary_initcode_start, (int)_binary_initcode_size);
-  p->sz = PGSIZE;
+  p->sz = HEAPBOT;
+  p->stacksz = USERTOP;
   memset(p->tf, 0, sizeof(*p->tf));
   p->tf->cs = (SEG_UCODE << 3) | DPL_USER;
   p->tf->ds = (SEG_UDATA << 3) | DPL_USER;
   p->tf->es = p->tf->ds;
   p->tf->ss = p->tf->ds;
   p->tf->eflags = FL_IF;
-  p->tf->esp = PGSIZE;
-  p->tf->eip = 0;  // beginning of initcode.S
+  p->tf->esp = USERTOP;
+  //p->tf->esp = PGSIZE;
+  p->tf->eip = 0;// beginning of initcode.S
+  
+  p->mapcount = 0;
+  for(int i = 0; i < SHAREDMEM; i++){
+    p->sharedmem[i] = NULL;
+  }
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
@@ -106,9 +114,13 @@ userinit(void)
 int
 growproc(int n)
 {
+//cprintf("growing proc\n");
   uint sz;
   
   sz = proc->sz;
+  if(proc->stacksz != 0)
+    if(sz + n > proc->stacksz - 5 * PGSIZE) { cprintf("Error: gap < 5\n"); return -1; }
+
   if(n > 0){
     if((sz = allocuvm(proc->pgdir, sz, sz + n)) == 0)
       return -1;
@@ -127,6 +139,7 @@ growproc(int n)
 int
 fork(void)
 {
+//cprintf("Forking\n");
   int i, pid;
   struct proc *np;
 
@@ -135,13 +148,14 @@ fork(void)
     return -1;
 
   // Copy process state from p.
-  if((np->pgdir = copyuvm(proc->pgdir, proc->sz)) == 0){
+  if((np->pgdir = copyuvm(proc->pgdir, proc->sz, proc->stacksz)) == 0){
     kfree(np->kstack);
     np->kstack = 0;
     np->state = UNUSED;
     return -1;
   }
   np->sz = proc->sz;
+  np->stacksz = proc->stacksz;
   np->parent = proc;
   *np->tf = *proc->tf;
 
@@ -152,10 +166,14 @@ fork(void)
     if(proc->ofile[i])
       np->ofile[i] = filedup(proc->ofile[i]);
   np->cwd = idup(proc->cwd);
- 
+  np->mapcount = proc->mapcount;
+  for(int i = 0; i < SHAREDMEM; i ++){
+    np->sharedmem[i] = proc->sharedmem[i];
+  }
   pid = np->pid;
   np->state = RUNNABLE;
   safestrcpy(np->name, proc->name, sizeof(proc->name));
+//cprintf("end of fork\n");
   return pid;
 }
 

@@ -13,6 +13,18 @@ sys_fork(void)
 }
 
 int
+sys_shmget(void)
+{
+  int pageCount;
+  if(argint(0, &pageCount) < 0 || pageCount < 0 || pageCount > 2)
+  {
+    return NULL;
+  }
+  //cprintf("pagecount: %d\n",pageCount);
+  return (uint)shmget(pageCount);
+}
+
+int
 sys_exit(void)
 {
   exit();

@@ -9,6 +9,7 @@
 int
 exec(char *path, char **argv)
 {
+//cprintf("executing ...\n");
   char *s, *last;
   int i, off;
   uint argc, sz, sp, ustack[3+MAXARG+1];
@@ -32,7 +33,7 @@ exec(char *path, char **argv)
     goto bad;
 
   // Load program into memory.
-  sz = 0;
+  sz = HEAPBOT;
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
     if(readi(ip, (char*)&ph, off, sizeof(ph)) != sizeof(ph))
       goto bad;
@@ -49,12 +50,14 @@ exec(char *path, char **argv)
   ip = 0;
 
   // Allocate a one-page stack at the next page boundary
-  sz = PGROUNDUP(sz);
-  if((sz = allocuvm(pgdir, sz, sz + PGSIZE)) == 0)
+  //stacksz = allocuvm(pgdir, USERTOP - PGSIZE, USERTOP)
+  uint stacksz = USERTOP;
+  stacksz = (uint)PGROUNDDOWN(stacksz);
+  if((stacksz = allocuvm(pgdir, stacksz - PGSIZE, stacksz)) == 0)
     goto bad;
-
+  
   // Push argument strings, prepare rest of stack in ustack.
-  sp = sz;
+  sp = stacksz;
   for(argc = 0; argv[argc]; argc++) {
     if(argc >= MAXARG)
       goto bad;
@@ -86,9 +89,15 @@ exec(char *path, char **argv)
   proc->sz = sz;
   proc->tf->eip = elf.entry;  // main
   proc->tf->esp = sp;
+  proc->stacksz = stacksz - PGSIZE;
   switchuvm(proc);
   freevm(oldpgdir);
 
+  proc->mapcount = 0;
+  for(int j = 0; j < SHAREDMEM; j ++){
+    proc->sharedmem[j] = NULL;
+  }
+  //cprintf("end of execution\n");
   return 0;
 
  bad:
@@ -96,5 +105,6 @@ exec(char *path, char **argv)
     freevm(pgdir);
   if(ip)
     iunlockput(ip);
+  //cprintf("end of bad execution\n");
   return -1;
 }

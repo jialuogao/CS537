@@ -17,9 +17,24 @@
 int
 fetchint(struct proc *p, uint addr, int *ip)
 {
-  if(addr >= p->sz || addr+4 > p->sz)
+  //cprintf("fetchint .. addr: %p, ip: %d, stacksz: %d\n", addr, *ip, p->stacksz);
+  if(addr >= p->stacksz && addr < USERTOP && addr+4 <= USERTOP)
+    goto instack;
+  else if(addr >= HEAPBOT && addr < p->sz && addr+4 <= p->sz)
+    goto instack;
+  else if(addr >= PGSIZE && addr < p->mapcount*PGSIZE+PGSIZE && addr+4 <= p->mapcount*PGSIZE+PGSIZE)
+    goto instack;
+  else if(addr >= PGSIZE){ 
+    //cprintf("Last else in fetchint reached\n"); 
     return -1;
+  }
+instack:
+  if(addr < PGSIZE && p->pid > 2) {
+    //cprintf("Error: fetchint: pid > 2 and addr < PGSIZE!\n");
+    return -1;
+  }
   *ip = *(int*)(addr);
+//cprintf("fetchint ended...\n");
   return 0;
 }
 
@@ -29,15 +44,35 @@ fetchint(struct proc *p, uint addr, int *ip)
 int
 fetchstr(struct proc *p, uint addr, char **pp)
 {
+  //cprintf("fetchstr...\n");
   char *s, *ep;
-
-  if(addr >= p->sz)
+  ep = (char*)PGSIZE;
+  if(addr >= p->stacksz && addr < USERTOP) {
+    ep = (char*)USERTOP;
+    goto instack;
+  }
+  else if(addr >= HEAPBOT && addr < p->sz) {
+    ep = (char*)p->sz;
+    goto instack;
+  }
+  else if(addr >= PGSIZE && addr < p->mapcount * PGSIZE + PGSIZE){
+    ep = (char*)HEAPBOT;
+    goto instack;
+  }
+  else if(addr >= PGSIZE){ 
+    //cprintf("Last else in fetchstr reached\n"); 
     return -1;
+  }
+instack:
+  if(addr < PGSIZE && p->pid > 2){
+    //cprintf("Error: fetchstr: pid > 2 and addr < PGSIZE!\n");
+    return -1;
+  }
   *pp = (char*)addr;
-  ep = (char*)p->sz;
   for(s = *pp; s < ep; s++)
     if(*s == 0)
       return s - *pp;
+//cprintf("fetchstr ended...\n");
   return -1;
 }
 
@@ -54,13 +89,29 @@ argint(int n, int *ip)
 int
 argptr(int n, char **pp, int size)
 {
+//cprintf("argptr ... nth: %d, ptr: %p, size: %d\n", n, pp, size);
   int i;
-  
+ 
   if(argint(n, &i) < 0)
     return -1;
-  if((uint)i >= proc->sz || (uint)i+size > proc->sz)
+  if((uint)i >= proc->stacksz && (uint)i < USERTOP && (uint)i+size <= USERTOP)
+    goto instack;
+  if((uint)i >= HEAPBOT && (uint)i < proc->sz && (uint)i+size <= proc->sz)
+    goto instack;
+  uint sharedtop = proc->mapcount * PGSIZE + PGSIZE;
+  if((uint)i >= PGSIZE && (uint)i < sharedtop && (uint)i+size <= sharedtop)
+    goto instack;
+  else if((uint)i >= PGSIZE){ 
+    //cprintf("Last else in argptr reached\n"); 
     return -1;
+  }
+instack:
+  if((uint)i < PGSIZE && proc->pid > 2){
+    //cprintf("Error: argptr: pid > 2 and addr < PGSIZE!\n");
+    return -1;
+  }
   *pp = (char*)i;
+//cprintf("argprt ended...\n");
   return 0;
 }
 
@@ -103,6 +154,7 @@ static int (*syscalls[])(void) = {
 [SYS_wait]    sys_wait,
 [SYS_write]   sys_write,
 [SYS_uptime]  sys_uptime,
+[SYS_shmget]  sys_shmget,
 };
 
 // Called on a syscall trap. Checks that the syscall number (passed via eax)

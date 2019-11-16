@@ -43,7 +43,8 @@ trap(struct trapframe *tf)
       exit();
     return;
   }
-
+  
+  uint stackbot;
   switch(tf->trapno){
   case T_IRQ0 + IRQ_TIMER:
     if(cpu->id == 0){
@@ -75,7 +76,37 @@ trap(struct trapframe *tf)
             cpu->id, tf->cs, tf->eip);
     lapiceoi();
     break;
-   
+  case T_PGFLT:
+    stackbot = (uint)PGROUNDDOWN(proc->stacksz);
+    uint cr2 = rcr2();
+    //cprintf("stackbot: %d, stacksz: %d, esp %d, proc ebp%d, cr2 %d\n", stackbot, proc->stacksz, tf->esp, proc->tf->ebp, cr2);
+    if(cr2 < PGSIZE || (cr2 >= proc->mapcount * PGSIZE + PGSIZE && cr2 < HEAPBOT)) { 
+      //cprintf("Error: unmapped shared page is reached\n"); 
+      goto kill; 
+    }
+    else if(cr2 >= proc->sz && cr2 < stackbot - PGSIZE){ 
+      //cprintf("Error: PGFLT more than one pg below stack\n"); 
+      goto kill; 
+    }
+    else if(cr2 < stackbot && cr2 >= HEAPBOT){
+       //cprintf("Growing stack...\n");
+       uint newpg = stackbot - PGSIZE;
+       uint heaptop = (uint)PGROUNDUP(proc->sz);
+       if(newpg - heaptop < 5 * PGSIZE){ 
+         //cprintf("Error: less than 5 page remaining\n"); 
+	 goto kill; 
+       }
+       allocuvm(proc->pgdir, newpg, newpg + PGSIZE);
+       proc->stacksz = newpg;
+       break;
+    }
+    //else cprintf("Error exec never should be there!\n");
+    //if(0){
+    kill: 
+       //cprintf("this process has been killed!\n");
+       proc->killed = 1;
+    //}
+    break;
   default:
     if(proc == 0 || (tf->cs&3) == 0){
       // In kernel, it must be our mistake.

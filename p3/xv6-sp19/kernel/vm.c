@@ -8,7 +8,9 @@
 
 extern char data[];  // defined in data.S
 
-static pde_t *kpgdir;  // for use in scheduler()
+static pde_t *kpgdir;  // for use in scheduler() 
+
+void* sharedaddr[SHAREDMEM];
 
 // Allocate one page table for the machine for the kernel address
 // space for scheduler processes.
@@ -82,7 +84,7 @@ mappages(pde_t *pgdir, void *la, uint size, uint pa, int perm)
   
   a = PGROUNDDOWN(la);
   last = PGROUNDDOWN(la + size - 1);
-  for(;;){
+for(;;){
     pte = walkpgdir(pgdir, a, 1);
     if(pte == 0)
       return -1;
@@ -228,9 +230,12 @@ loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz)
 int
 allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 {
+//cprintf("allocating uvm...\n");
   char *mem;
   uint a;
-
+  
+  if(newsz < HEAPBOT)
+    return 0;
   if(newsz > USERTOP)
     return 0;
   if(newsz < oldsz)
@@ -286,7 +291,7 @@ freevm(pde_t *pgdir)
 
   if(pgdir == 0)
     panic("freevm: no pgdir");
-  deallocuvm(pgdir, USERTOP, 0);
+  deallocuvm(pgdir, USERTOP, HEAPBOT);
   for(i = 0; i < NPDENTRIES; i++){
     if(pgdir[i] & PTE_P)
       kfree((char*)PTE_ADDR(pgdir[i]));
@@ -297,16 +302,17 @@ freevm(pde_t *pgdir)
 // Given a parent process's page table, create a copy
 // of it for a child.
 pde_t*
-copyuvm(pde_t *pgdir, uint sz)
+copyuvm(pde_t *pgdir, uint sz, uint stacksz)
 {
+ // cprintf("copying uvm ...\n");
   pde_t *d;
   pte_t *pte;
-  uint pa, i;
+  uint pa, i, j, k;
   char *mem;
 
   if((d = setupkvm()) == 0)
     return 0;
-  for(i = 0; i < sz; i += PGSIZE){
+  for(i = HEAPBOT; i < sz; i += PGSIZE){
     if((pte = walkpgdir(pgdir, (void*)i, 0)) == 0)
       panic("copyuvm: pte should exist");
     if(!(*pte & PTE_P))
@@ -318,9 +324,32 @@ copyuvm(pde_t *pgdir, uint sz)
     if(mappages(d, (void*)i, PGSIZE, PADDR(mem), PTE_W|PTE_U) < 0)
       goto bad;
   }
+
+  for(j = USERTOP - PGSIZE; j >= (uint)PGROUNDDOWN(stacksz); j -= PGSIZE){
+//cprintf("copyuvm copying memory pages ...\n");
+    if((pte = walkpgdir(pgdir, (void*)j, 1)) == 0)
+      panic("copyuvm: pte should exist");
+    if(!(*pte & PTE_P))
+      panic("copyuvm: page not present");
+    pa = PTE_ADDR(*pte);
+    if((mem = kalloc()) == 0)
+      goto bad;
+    memmove(mem, (char*)pa, PGSIZE);
+    if(mappages(d, (void*)j, PGSIZE, PADDR(mem), PTE_W|PTE_U) < 0)
+      goto bad;
+  }
+  
+  if(proc->pid > 2)
+    for(k = 0; k < SHAREDMEM; k ++) {
+      void* physicaladdr = sharedaddr[k];
+      if(physicaladdr != NULL && proc->sharedmem[k] != NULL)
+        if(mappages(d, (void*)proc->sharedmem[k], PGSIZE, PADDR(physicaladdr), PTE_W|PTE_U) < 0)
+          goto bad;
+    }
   return d;
 
 bad:
+  //cprintf("bad in copyuvm\n");
   freevm(d);
   return 0;
 }
@@ -363,4 +392,37 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
     va = va0 + PGSIZE;
   }
   return 0;
+}
+
+void
+initsharedmem()
+{
+  for(int i = 0; i < SHAREDMEM; i++){
+    if((sharedaddr[i] = kalloc()) == 0){
+      cprintf("Error, initsharedmem failed to kalloc at: %d\n", i);
+      exit();
+    }
+  }
+}
+
+void*
+shmget(int page_number)
+{
+  if(proc->sharedmem[page_number] != NULL)
+    return proc->sharedmem[page_number];
+
+  if(proc->mapcount > 3){ 
+    //cprintf("Error, shmget more than 3 mapcount\n"); 
+    return NULL;
+  }
+  if(proc->mapcount * PGSIZE >= HEAPBOT){ 
+    //cprintf("Error, shmget addr >= HEAPBOT\n");
+    return NULL;
+  }
+  proc->mapcount ++;
+  void* mapaddr = (void*)(proc->mapcount * PGSIZE);
+  proc->sharedmem[page_number] = mapaddr;
+  //cprintf("pagenum: %d, mapaddr %d\n",page_number,(uint)mapaddr);
+  if(mappages(proc->pgdir, mapaddr, PGSIZE, PADDR(sharedaddr[page_number]), PTE_W|PTE_U) < 0) return NULL;
+  return mapaddr;
 }
