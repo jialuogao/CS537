@@ -1,0 +1,1 @@
+my-sed: find_term replace_term [file ...]
