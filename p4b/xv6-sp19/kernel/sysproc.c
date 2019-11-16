@@ -6,67 +6,115 @@
 #include "proc.h"
 #include "sysfunc.h"
 
-int
-sys_fork(void)
+int sys_clone(void)
+{
+  void *arg1;
+  void *arg2;
+  void (*fcn)(void *, void *);
+  void *stack;
+  
+  if (argptr(0, (void *)&fcn, sizeof(fcn) < 0))
+  {
+    // cprintf("Error in sys_clone when extracting fcn\n");
+    return -1;
+  }
+  if (argptr(1, (void *)&arg1, sizeof(arg1) < 0))
+  {
+    // cprintf("Error in sys_clone when extracting arg1\n");
+    return -1;
+  }
+  if (argptr(2, (void *)&arg2, sizeof(arg2) < 0))
+  {
+    // cprintf("Error in sys_clone when extracting arg2\n");
+    return -1;
+  }
+  if (argptr(3, (void *)&stack, sizeof(stack) < 0))
+  {
+    // cprintf("Error in sys_clone when extracting stack\n");
+    return -1;
+  }
+   if ((uint)stack % PGSIZE != 0){
+     // cprintf("Error in sys_clone stack is not page alligned\n");
+     return -1;
+   }
+
+  if (proc->sz < (uint)stack + PGSIZE)
+  {
+    // cprintf("Error in sys_clone stack size is not one page\n");
+    return -1;
+  }
+  
+  int result = clone(fcn, arg1, arg2, stack);
+  return result;
+}
+
+int sys_join(void)
+{
+  void **stack;
+  if (argptr(0, (char **)&stack, sizeof(void *)) < 0)
+  {
+    //cprintf("Error in sys_join when extracting stack\n");
+    return -1;
+  }
+  return join(stack);
+}
+
+int sys_fork(void)
 {
   return fork();
 }
 
-int
-sys_exit(void)
+int sys_exit(void)
 {
   exit();
-  return 0;  // not reached
+  return 0; // not reached
 }
 
-int
-sys_wait(void)
+int sys_wait(void)
 {
   return wait();
 }
 
-int
-sys_kill(void)
+int sys_kill(void)
 {
   int pid;
 
-  if(argint(0, &pid) < 0)
+  if (argint(0, &pid) < 0)
     return -1;
   return kill(pid);
 }
 
-int
-sys_getpid(void)
+int sys_getpid(void)
 {
   return proc->pid;
 }
 
-int
-sys_sbrk(void)
+int sys_sbrk(void)
 {
   int addr;
   int n;
 
-  if(argint(0, &n) < 0)
+  if (argint(0, &n) < 0)
     return -1;
   addr = proc->sz;
-  if(growproc(n) < 0)
+  if (growproc(n) < 0)
     return -1;
   return addr;
 }
 
-int
-sys_sleep(void)
+int sys_sleep(void)
 {
   int n;
   uint ticks0;
-  
-  if(argint(0, &n) < 0)
+
+  if (argint(0, &n) < 0)
     return -1;
   acquire(&tickslock);
   ticks0 = ticks;
-  while(ticks - ticks0 < n){
-    if(proc->killed){
+  while (ticks - ticks0 < n)
+  {
+    if (proc->killed)
+    {
       release(&tickslock);
       return -1;
     }
@@ -78,11 +126,10 @@ sys_sleep(void)
 
 // return how many clock tick interrupts have occurred
 // since boot.
-int
-sys_uptime(void)
+int sys_uptime(void)
 {
   uint xticks;
-  
+
   acquire(&tickslock);
   xticks = ticks;
   release(&tickslock);

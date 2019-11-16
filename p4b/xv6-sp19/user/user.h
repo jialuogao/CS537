@@ -1,9 +1,14 @@
 #ifndef _USER_H_
 #define _USER_H_
-
+typedef struct __lock_t {
+    int ticket;
+    int turn;
+} lock_t;
 struct stat;
 
 // system calls
+int clone(void(*fcn) (void *, void *), void *arg1, void *arg2, void *stack);
+int join(void **stack);
 int fork(void);
 int exit(void) __attribute__((noreturn));
 int wait(void);
@@ -39,6 +44,10 @@ void* memset(void*, int, uint);
 void* malloc(uint);
 void free(void*);
 int atoi(const char*);
-
+int thread_create(void (*start_routine)(void *, void *), void *arg1, void *arg2);
+int thread_join();
+void lock_init(lock_t *lock);
+void lock_acquire(lock_t *lock);
+void lock_release(lock_t *lock);
 #endif // _USER_H_
 
