@@ -16,4 +16,7 @@
 #define PHYSTOP  0x1000000 // use phys mem up to here as free pool
 #define MAXARG       32  // max exec arguments
 
+#define NLAYER        4
+#define INT_MAX  2147483647
+
 #endif // _PARAM_H_

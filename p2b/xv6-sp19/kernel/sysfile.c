@@ -390,3 +390,18 @@ sys_pipe(void)
   fd[1] = fd1;
   return 0;
 }
+
+int
+sys_getpinfo(void)
+{
+  char *psts;
+
+  if(argptr(0, &psts, sizeof(*psts)) < 0){
+    return -1;
+  }
+  if(psts == NULL){
+    return -1;
+  }
+  return getpinfo((struct pstat*)psts);
+}
+
