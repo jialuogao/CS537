@@ -9,6 +9,8 @@
 #include "fcntl.h"
 #include "sysfunc.h"
 
+static int open_count = 0;
+static int close_count = 0;
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
 static int
@@ -85,6 +87,8 @@ sys_write(void)
 int
 sys_close(void)
 {
+  close_count ++;
+
   int fd;
   struct file *f;
   
@@ -257,6 +261,8 @@ create(char *path, short type, short major, short minor)
 int
 sys_open(void)
 {
+  open_count ++;
+
   char *path;
   int fd, omode;
   struct file *f;
@@ -291,6 +297,17 @@ sys_open(void)
   f->readable = !(omode & O_WRONLY);
   f->writable = (omode & O_WRONLY) || (omode & O_RDWR);
   return fd;
+}
+
+int
+sys_getopenedcount(void)
+{
+  return open_count;
+}
+int
+sys_getclosedcount(void)
+{
+  return close_count;
 }
 
 int
