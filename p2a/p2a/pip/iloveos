@@ -1,0 +1,7 @@
+this is a very very cheesy test to grep the OS 
+there is no operating systems here
+there is two os here, os
+there should be 6 Os word in total
+it is case insensitive when you have flag i in grep
+n shows the number of the line containg the word
+os OS

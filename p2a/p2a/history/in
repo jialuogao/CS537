@@ -1,0 +1,7 @@
+uname
+ls /u/ 
+cd /u/c/s/cs537-1/tests/p2a/history
+ls
+cat iloveos
+history
+exit

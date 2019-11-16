@@ -1,0 +1,192 @@
+starting build
+
+**********************************************************************
+
+Test build
+build project using make
+
+**********************************************************************
+Trying to clean project using make clean
+make clean
+rm -f runtests*
+rm -f *.pyc
+Trying to build project using make
+make
+echo "#!/bin/bash" > runtests
+echo "base=/u/c/s/cs537-1/tests/p2a" >> runtests
+echo "python \$base/project2a.py --test-path \$base \$@"\
+	" | tee runtests.log" >> runtests
+echo "exit \$?" >> runtests
+chmod a+x runtests
+
+
+test build PASSED (5 of 5)
+ (build project using make)
+ file 'wish' exists after make clean, removing
+
+starting exit
+
+**********************************************************************
+
+Test exit
+run exit
+
+**********************************************************************
+/tmp/tmpGUabBS/p/./wish
+
+
+test exit PASSED (10 of 10)
+ (run exit)
+
+starting cd
+
+**********************************************************************
+
+Test cd
+cd with argument, and cd without argument
+
+**********************************************************************
+/tmp/tmpGUabBS/p/./wish
+
+
+test cd PASSED (10 of 10)
+ (cd with argument, and cd without argument)
+
+starting badcd
+
+**********************************************************************
+
+Test badcd
+cd to a bad directory
+
+**********************************************************************
+/tmp/tmpGUabBS/p/./wish
+
+
+test badcd PASSED (5 of 5)
+ (cd to a bad directory)
+
+starting history
+
+**********************************************************************
+
+Test history
+test history without argument
+
+**********************************************************************
+/tmp/tmpGUabBS/p/./wish
+
+
+test history PASSED (5 of 5)
+ (test history without argument)
+
+starting historyarg
+
+**********************************************************************
+
+Test historyarg
+test history with argument
+
+**********************************************************************
+/tmp/tmpGUabBS/p/./wish
+
+
+test historyarg PASSED (5 of 5)
+ (test history with argument)
+
+starting exec
+
+**********************************************************************
+
+Test exec
+path should be /bin
+
+**********************************************************************
+/tmp/tmpGUabBS/p/./wish
+
+
+test exec PASSED (5 of 5)
+ (path should be /bin)
+
+starting badexec
+
+**********************************************************************
+
+Test badexec
+run programs that do not exist in /bin
+
+**********************************************************************
+/tmp/tmpGUabBS/p/./wish
+
+
+test badexec PASSED (5 of 5)
+ (run programs that do not exist in /bin)
+
+starting path
+
+**********************************************************************
+
+Test path
+run path and a program that exists in a given path
+
+**********************************************************************
+/tmp/tmpGUabBS/p/./wish
+
+
+test path PASSED (5 of 5)
+ (run path and a program that exists in a given path)
+
+starting path2
+
+**********************************************************************
+
+Test path2
+run path with a long pathname and many different paths
+
+**********************************************************************
+/tmp/tmpGUabBS/p/./wish
+
+
+test path2 PASSED (5 of 5)
+ (run path with a long pathname and many different paths)
+
+starting pip
+
+**********************************************************************
+
+Test pip
+simple piping
+
+**********************************************************************
+/tmp/tmpGUabBS/p/./wish
+
+
+test pip PASSED (5 of 5)
+ (simple piping)
+
+starting badpip
+
+**********************************************************************
+
+Test badpip
+test the pipe with second bad command
+
+**********************************************************************
+/tmp/tmpGUabBS/p/./wish
+Failure: ./wish gave incorrect standard error.
+Expected: "An error has occurred\n"
+Got:      "An error has occurred\nls: write error: Broken pipe\n"
+
+
+test badpip FAILED (0 of 5)
+ (test the pipe with second bad command)
+ ./wish gave incorrect standard error.
+
+ Test it yourself by running
+ wish </u/c/s/cs537-1/tests/p2a/badpip/in
+ and check out the test folder
+ /u/c/s/cs537-1/tests/p2a/badpip
+ to compare your output with reference outputs. 
+
+Skipped 7 tests.
+To keep testing after failing a test, use flag '-c' or '--continue'

@@ -1,0 +1,45 @@
+starting build
+
+**********************************************************************
+
+Test build
+build project using make
+
+**********************************************************************
+Trying to clean project using make clean
+make clean
+rm wish
+Trying to build project using make
+make
+gcc -Wall -Werror wish.c -o wish -lm
+
+
+test build PASSED (5 of 5)
+ (build project using make)
+
+starting rdr2
+
+**********************************************************************
+
+Test rdr2
+simple redirection with standard error
+
+**********************************************************************
+/tmp/tmpqE4ZZB/p/./wish
+Failure: ./wish gave incorrect standard error.
+Expected: ""
+Got:      "ls: cannot access '/bad/': No such file or directory\n"
+
+
+test rdr2 FAILED (0 of 5)
+ (simple redirection with standard error)
+ ./wish gave incorrect standard error.
+
+ Test it yourself by running
+ wish </u/c/s/cs537-1/tests/p2a/rdr2/in
+ and check out the test folder
+ /u/c/s/cs537-1/tests/p2a/rdr2
+ to compare your output with reference outputs. 
+
+Skipped 0 tests.
+To keep testing after failing a test, use flag '-c' or '--continue'
